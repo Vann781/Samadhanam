@@ -3,32 +3,64 @@ const Municipal = require('../models/District.js');
 const User = require('../models/User.js');
 const bcrypt = require('bcrypt');
 const State = require('../models/State.js');
+const { generateTokens } = require('../middleware/authMiddleware.js');
 require('dotenv').config();
-const jwt = require("jsonwebtoken");
 
 
  const LoginState = async (req, res) => {  
   try {
-    const {enteredUserName,enteredPassword} = req.body;
-      console.log(enteredUserName,enteredPassword);
-      const user = await State.findOne({official_username: enteredUserName});
-      console.log(user);
-      if(!user){
-        return res.status(401).json({success:false,message:"User not found"});
-      }
-      const isMatch = await bcrypt.compare(enteredPassword, user.hashed_password);
-      if (!isMatch) return res.status(401).json({ success:false,message: "Invalid password" });
-      const tokens = jwt.sign({enteredUserName,enteredPassword},process.env.JWT_SECRET);
-      console.log(tokens + " Generated during login");
-      console.log(req.body);
-      console.log(true);
-      return res.json({success:true,user:user,tokens:tokens});
+    const {enteredUserName, enteredPassword} = req.body;
+    
+    // Validate input
+    if (!enteredUserName || !enteredPassword) {
+      return res.status(400).json({
+        success: false, 
+        message: "Username and password are required"
+      });
+    }
+    
+    console.log("Login attempt for username:", enteredUserName);
+    
+    // Find user
+    const user = await State.findOne({official_username: enteredUserName});
+    if (!user) {
+      return res.status(401).json({
+        success: false, 
+        message: "User not found"
+      });
+    }
+    
+    // Verify password
+    const isMatch = await bcrypt.compare(enteredPassword, user.hashed_password);
+    if (!isMatch) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid password" 
+      });
+    }
+    
+    // Generate tokens with user info
+    const { accessToken, refreshToken } = generateTokens({
+      username: user.official_username,
+      state_id: user.state_id,
+      state_name: user.state_name
+    });
+    
+    console.log("✅ Login successful for:", enteredUserName);
+    
+    return res.json({
+      success: true,
+      user: user,
+      token: accessToken,
+      refreshToken: refreshToken
+    });
   } catch (error) {
-      return res.json({success:false,message:error});
+    console.error("Login error:", error);
+    return res.status(500).json({
+      success: false, 
+      message: "Server error during login"
+    });
   }
-      
-
-
 }
 const fetchallDistricts = async (req, res) => {
     try {

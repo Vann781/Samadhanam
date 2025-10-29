@@ -5,7 +5,7 @@ import App from './App.jsx'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
 import Login from './components/login.jsx'
 import Home from './components/home.jsx'
-import All_district from './components/all_district.jsx'
+import All_district from './components/All_district.jsx'
 import React from 'react'
 const router = createBrowserRouter([
   {

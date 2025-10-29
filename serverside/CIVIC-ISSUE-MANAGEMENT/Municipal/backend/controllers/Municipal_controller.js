@@ -1,7 +1,7 @@
 const MunicipalModel = require("../models/Municipal.js");
 const ComplaintModel = require("../models/Complaint.js");
 const bcrypt = require("bcrypt");
-const jwt = require("jsonwebtoken");
+const { generateTokens } = require("../middleware/authMiddleware.js");
 require('dotenv').config();
 
 const fetchallDistricts = async (req, res) => {
@@ -34,24 +34,58 @@ const fetchDistrict = async (req, res) => {
 
 const LoginMunicipal = async (req, res) => {  
   try {
-    const {username,password} = req.body;
-      console.log(username,password);
-      const user = await MunicipalModel.findOne({official_username: username});
-      if(!user){
-        return res.status(401).json({success:false,message:"User not found"});
-      }
-      const isMatch = await bcrypt.compare(password, user.hashed_password);
-      if (!isMatch) return res.status(401).json({ message: "Invalid password" });
-      const tokens = jwt.sign({username,password},process.env.JWT_SECRET);
-      console.log(tokens + " Generated during login");
-      console.log(req.body);
-      console.log(true);
-      return res.json({success:true,user:user,tokens:tokens});
+    const {username, password} = req.body;
+    
+    // Validate input
+    if (!username || !password) {
+      return res.status(400).json({
+        success: false, 
+        message: "Username and password are required"
+      });
+    }
+    
+    console.log("Login attempt for username:", username);
+    
+    // Find user
+    const user = await MunicipalModel.findOne({official_username: username});
+    if (!user) {
+      return res.status(401).json({
+        success: false, 
+        message: "User not found"
+      });
+    }
+    
+    // Verify password
+    const isMatch = await bcrypt.compare(password, user.hashed_password);
+    if (!isMatch) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Invalid password" 
+      });
+    }
+    
+    // Generate tokens with user info
+    const { accessToken, refreshToken } = generateTokens({
+      username: user.official_username,
+      district_id: user.district_id,
+      district_name: user.district_name
+    });
+    
+    console.log("✅ Login successful for:", username);
+    
+    return res.json({
+      success: true,
+      user: user,
+      token: accessToken,
+      refreshToken: refreshToken
+    });
   } catch (error) {
-      return res.json({success:false,message:error});
+    console.error("Login error:", error);
+    return res.status(500).json({
+      success: false, 
+      message: "Server error during login"
+    });
   }
-      
-
 }
 
 const fetchByName = async (req,res) => {

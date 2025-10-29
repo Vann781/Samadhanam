@@ -3,6 +3,8 @@ import axios from 'axios'
 import { toast } from 'react-toastify'
 import { useNavigate } from 'react-router-dom'
 import { useRef } from 'react'
+import { endpoints } from '../config/api'
+
 const Login = () => {
   const UserNameRef = React.useRef(); 
   const passwordRef = React.useRef();
@@ -12,23 +14,49 @@ const Login = () => {
     e.preventDefault();
     const enteredUserName = UserNameRef.current.value;
     const enteredPassword = passwordRef.current.value;
-    console.log(enteredUserName, enteredPassword);
+    
+    // Basic validation
+    if (!enteredUserName || !enteredPassword) {
+      toast.error("Please enter both username and password");
+      return;
+    }
+    
+    console.log("Login attempt:", enteredUserName);
     UserNameRef.current.value = "";
     passwordRef.current.value = "";
 
     try {
-      const {data} = await axios.post("http://localhost:4005" + "/State/login", {enteredUserName,enteredPassword});
-       if (data.success) {
-         toast.success('Login successful!');
-        //  localStorage.setItem("State login token", response.tokens);
-         const id = data.user.state_id;
-         navigate(`Home/${id}`);
-       } else {
-         toast.error('Login failed. Please try again.');
-       }
-
+      const { data } = await axios.post(endpoints.state.login, {
+        enteredUserName,
+        enteredPassword
+      });
+      
+      if (data.success) {
+        // Store the token
+        localStorage.setItem("State login token", data.token);
+        
+        // Optional: Store refresh token
+        if (data.refreshToken) {
+          localStorage.setItem("State refresh token", data.refreshToken);
+        }
+        
+        toast.success('Login successful!');
+        
+        const id = data.user.state_id;
+        navigate(`Home/${id}`);
+      } else {
+        toast.error(data.message || 'Login failed. Please try again.');
+      }
     } catch (error) {
-      toast.error('Login failed. Please try again.');
+      console.error("Login error:", error);
+      
+      if (error.response) {
+        toast.error(error.response.data.message || 'Login failed. Please try again.');
+      } else if (error.request) {
+        toast.error("Cannot connect to server. Please try again.");
+      } else {
+        toast.error('An error occurred. Please try again.');
+      }
     }
   };
 
@@ -46,18 +74,18 @@ const Login = () => {
       <form className="bg-black/60 backdrop-blur-sm rounded-xl border border-white/20 shadow-xl p-8 w-full max-w-md flex flex-col gap-6 text-white">
         <h2 className="text-3xl font-semibold text-center tracking-wide">STATE LOGIN</h2>
         <div>
-          <label htmlFor="email" className="block text-sm font-medium mb-1">
+          <label htmlFor="username" className="block text-sm font-medium mb-1">
             UserName
           </label>
           <input
             type="text"
-            id="text"
-            name="text"
+            id="username"
+            name="username"
             ref={UserNameRef}
             className="w-full px-4 py-2 border border-white/20 rounded-lg bg-white/5 placeholder:text-white/60 focus:outline-none focus:ring-2 focus:ring-blue-500"
             required
-            autoComplete="email"
-            placeholder="you@state.gov"
+            autoComplete="username"
+            placeholder="official_uttarpradesh"
           />
         </div>
         <div>
